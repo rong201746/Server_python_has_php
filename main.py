@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-用法:
-    python server.py port=80 dir=C:\网站 VERBOSE=True
+Usage:
+    python server.py port=80 dir=C:\website VERBOSE=True
     python server.py port=8080 dir=./www VERBOSE=False
 
-参数:
-    port    监听端口, 默认 80
-    dir     网站根目录, 默认当前目录
-    VERBOSE 是否打印请求日志, 取值 True/False (不区分大小写), 默认 True
+Arguments:
+    port    Listening port, default 80
+    dir     Website root directory, default current directory
+    VERBOSE Whether to print request logs, accepts True/False (case-insensitive), default True
 """
 
 import os
@@ -20,30 +20,30 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 
-# ---------------- 默认配置 ----------------
+# ---------------- Default configuration ----------------
 
 DEFAULT_PORT = 80
 DEFAULT_DIR = os.getcwd()
 
-# php-cgi 可执行文件路径。若已在 PATH 中, 保持 'php-cgi' 即可;
-# 否则填绝对路径, 例如 Windows: r'C:\php\php-cgi.exe'
+# Path to the php-cgi executable. If it is already on PATH, keep 'php-cgi';
+# otherwise set an absolute path, e.g. Windows: r'C:\php\php-cgi.exe'
 PHP_CGI = shutil.which('php-cgi') or shutil.which('php-cgi.exe') or 'php-cgi'
 
-# 运行时日志开关(由命令行参数覆盖)
+# Runtime log switch (overridden by command-line arguments)
 VERBOSE = True
 
 
-# ---------------- 参数解析 ----------------
+# ---------------- Argument parsing ----------------
 
 def parse_args(argv):
     """
-    解析形如 key=value 的参数。
-    返回 dict, 键统一为小写(port/dir/verbose)。
+    Parse arguments of the form key=value.
+    Returns a dict with keys normalized to lowercase (port/dir/verbose).
     """
     opts = {}
     for arg in argv:
         if '=' not in arg:
-            print(f"忽略无法识别的参数: {arg}")
+            print(f"Ignoring unrecognized argument: {arg}")
             continue
         key, value = arg.split('=', 1)
         opts[key.strip().lower()] = value.strip()
@@ -51,16 +51,16 @@ def parse_args(argv):
 
 
 def to_bool(value, default=True):
-    """把 True/False 等转成 bool, 大小写不敏感。"""
+    """Convert True/False etc. to bool, case-insensitive."""
     if value is None:
         return default
     return value.strip().lower() in ('true', '1', 'yes', 'on', 'y', 't')
 
 
-# ---------------- 工具函数 ----------------
+# ---------------- Helper functions ----------------
 
 def build_cgi_env(handler, script_path, path_info, query_string, content_length):
-    """构造传给 php-cgi 的环境变量(CGI/1.1 约定)。"""
+    """Build the environment variables passed to php-cgi (CGI/1.1 convention)."""
     env = os.environ.copy()
 
     server_name, server_port = handler.server.server_address[:2]
@@ -84,7 +84,7 @@ def build_cgi_env(handler, script_path, path_info, query_string, content_length)
         'REMOTE_PORT':       str(handler.client_address[1]),
         'CONTENT_LENGTH':    str(content_length),
         'CONTENT_TYPE':      handler.headers.get('Content-Type', ''),
-        'REDIRECT_STATUS':   '1',   # php-cgi 必需
+        'REDIRECT_STATUS':   '1',   # required by php-cgi
     })
 
     for key, value in handler.headers.items():
@@ -97,7 +97,7 @@ def build_cgi_env(handler, script_path, path_info, query_string, content_length)
 
 
 def split_php_output(raw):
-    """把 php-cgi 输出拆成 (headers 列表, body 字节)。"""
+    """Split php-cgi output into (list of headers, body bytes)."""
     for sep in (b'\r\n\r\n', b'\n\n'):
         idx = raw.find(sep)
         if idx != -1:
@@ -113,10 +113,10 @@ def split_php_output(raw):
     return [], raw
 
 
-# ---------------- 请求处理器 ----------------
+# ---------------- Request handler ----------------
 
 class PHPHTTPRequestHandler(SimpleHTTPRequestHandler):
-    """静态文件 + PHP 混合处理器。"""
+    """Combined static file + PHP handler."""
 
     server_version = 'PHPHTTP/1.0'
 
@@ -170,7 +170,7 @@ class PHPHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.send_error(
                 500,
                 f'php-cgi not found (tried: {PHP_CGI}). '
-                f'请安装 PHP 或设置 PHP_CGI 路径。'
+                f'Please install PHP or set the PHP_CGI path.'
             )
             return
         except subprocess.TimeoutExpired:
@@ -244,27 +244,27 @@ class PHPHTTPRequestHandler(SimpleHTTPRequestHandler):
                                             fmt % args))
 
 
-# ---------------- 入口 ----------------
+# ---------------- Entry point ----------------
 
 def main():
     global VERBOSE
 
     opts = parse_args(sys.argv[1:])
 
-    # 端口
+    # Port
     try:
         port = int(opts.get('port', DEFAULT_PORT))
     except ValueError:
-        print(f"端口无效: {opts.get('port')}")
+        print(f"Invalid port: {opts.get('port')}")
         sys.exit(1)
 
-    # 目录
+    # Directory
     root = os.path.abspath(opts.get('dir', DEFAULT_DIR))
     if not os.path.isdir(root):
-        print(f"目录不存在: {root}")
+        print(f"Directory does not exist: {root}")
         sys.exit(1)
 
-    # VERBOSE: 先转小写再判断
+    # VERBOSE: lowercase before checking
     VERBOSE = to_bool(opts.get('verbose'), default=True)
 
     os.chdir(root)
@@ -273,7 +273,7 @@ def main():
     print(f"DOCUMENT_ROOT: {root}")
     print(f"VERBOSE      : {VERBOSE}")
     print(f"Listening on : http://localhost:{port}/")
-    print("Ctrl+C 停止\n")
+    print("Press Ctrl+C to stop\n")
 
     handler = partial(PHPHTTPRequestHandler, directory=root)
     httpd = ThreadingHTTPServer(('0.0.0.0', port), handler)
@@ -281,7 +281,7 @@ def main():
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n已停止")
+        print("\nStopped")
     finally:
         httpd.server_close()
 
